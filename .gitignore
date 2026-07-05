@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+
+# 環境変数・秘密情報（絶対にGitに上げない）
+.env
+service_account.json
+
+# IDE
+.vscode/
+.idea/
+google_credentials.py
