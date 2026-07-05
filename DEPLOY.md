@@ -31,7 +31,6 @@ PC を閉じても LINE が使えるようにするための手順です。
 |---------|------|
 | `Procfile` | 本番サーバー（gunicorn）の起動コマンド |
 | `render.yaml` | Render の設定（任意） |
-| `google_credentials.py` | クラウド用の認証（環境変数対応） |
 
 ---
 

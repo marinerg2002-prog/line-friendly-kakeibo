@@ -4,13 +4,21 @@ Google スプレッドシート連携
 gspread を使って、家計データの保存と今月の集計を行います。
 """
 
+import json
 from datetime import datetime
+from pathlib import Path
 
 import gspread
+from google.oauth2.service_account import Credentials
 
 from config import Config
-from google_credentials import get_credentials, get_service_account_email
 from kakeibo_logic import Transaction
+
+# Google Sheets API で必要な権限
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
 
 # スプレッドシートの列名（1行目のヘッダー）
 HEADERS = ["日付", "区分", "内容", "金額", "カテゴリ"]
@@ -22,6 +30,42 @@ class SheetConnectionError(Exception):
     def __init__(self, user_message: str):
         self.user_message = user_message
         super().__init__(user_message)
+
+
+def _load_service_account_info() -> dict:
+    """
+    サービスアカウントの JSON を読み込む。
+    クラウド: 環境変数 GOOGLE_SERVICE_ACCOUNT_JSON
+    ローカル: service_account.json
+    """
+    if Config.GOOGLE_SERVICE_ACCOUNT_JSON:
+        return json.loads(Config.GOOGLE_SERVICE_ACCOUNT_JSON)
+
+    key_path = Path(Config.GOOGLE_SERVICE_ACCOUNT_FILE)
+    if not key_path.exists():
+        raise FileNotFoundError(
+            f"認証ファイルが見つかりません: {Config.GOOGLE_SERVICE_ACCOUNT_FILE}"
+        )
+
+    with key_path.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
+def _get_credentials() -> Credentials:
+    """Google API 用の認証情報を作成する"""
+    return Credentials.from_service_account_info(
+        _load_service_account_info(),
+        scopes=SCOPES,
+    )
+
+
+def _get_service_account_email() -> str:
+    """共有先メールアドレス（client_email）を取得する"""
+    try:
+        info = _load_service_account_info()
+        return info.get("client_email", "（client_email が見つかりません）")
+    except (FileNotFoundError, json.JSONDecodeError):
+        return "（認証情報が設定されていません）"
 
 
 def _build_spreadsheet_hint(client: gspread.Client, spreadsheet_id: str) -> str:
@@ -59,7 +103,7 @@ class SheetService:
             )
 
         try:
-            credentials = get_credentials()
+            credentials = _get_credentials()
         except FileNotFoundError:
             raise SheetConnectionError(
                 "Google の認証情報が設定されていません。\n"
@@ -72,7 +116,7 @@ class SheetService:
         try:
             self.spreadsheet = client.open_by_key(spreadsheet_id)
         except gspread.SpreadsheetNotFound as exc:
-            service_email = get_service_account_email()
+            service_email = _get_service_account_email()
             hint = _build_spreadsheet_hint(client, spreadsheet_id)
             raise SheetConnectionError(
                 "スプレッドシートに接続できませんでした。\n\n"
