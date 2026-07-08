@@ -13,8 +13,10 @@ from kakeibo_logic import (
     build_invalid_format_reply,
     build_monthly_summary_reply,
     build_record_reply,
+    build_reset_reply,
     build_welcome_message,
     is_monthly_summary_request,
+    is_reset_request,
     parse_transaction,
 )
 from sheet_service import SheetConnectionError, SheetService
@@ -62,8 +64,9 @@ def handle_text_message(event):
     テキストメッセージを受け取ったときの処理。
 
     1. 「今月の家計」→ 今月の集計を返す
-    2. 「+金額 内容」「-金額 内容」→ 記録して返信
-    3. それ以外 → 入力形式の案内を返す
+    2. 「家計簿リセット」→ 記録をすべて削除
+    3. 「+金額 内容」「-金額 内容」→ 記録して返信
+    4. それ以外 → 入力形式の案内を返す
     """
     user_message = event.message.text.strip()
     reply_text = process_message(user_message)
@@ -86,6 +89,12 @@ def process_message(text: str) -> str:
             sheet = SheetService()
             income_total, expense_total = sheet.get_current_month_totals()
             return build_monthly_summary_reply(income_total, expense_total)
+
+        # 「家計簿リセット」のリクエスト
+        if is_reset_request(text):
+            sheet = SheetService()
+            deleted_count = sheet.clear_all_transactions()
+            return build_reset_reply(deleted_count)
 
         # 収入・支出の記録
         transaction = parse_transaction(text)

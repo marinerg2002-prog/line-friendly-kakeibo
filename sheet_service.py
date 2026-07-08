@@ -110,6 +110,12 @@ class SheetService:
                 "ローカル: service_account.json を配置\n"
                 "クラウド: GOOGLE_SERVICE_ACCOUNT_JSON を環境変数に設定"
             ) from None
+        except json.JSONDecodeError:
+            raise SheetConnectionError(
+                "GOOGLE_SERVICE_ACCOUNT_JSON の形式が正しくありません。\n"
+                "service_account.json を1行の JSON に圧縮して、\n"
+                "Render の環境変数に貼り付け直してください。"
+            ) from None
 
         client = gspread.authorize(credentials)
 
@@ -120,6 +126,7 @@ class SheetService:
             hint = _build_spreadsheet_hint(client, spreadsheet_id)
             raise SheetConnectionError(
                 "スプレッドシートに接続できませんでした。\n\n"
+                f"設定中の ID: {spreadsheet_id}\n\n"
                 "よくある原因：\n"
                 "1. SPREADSHEET_ID が間違っている（1文字の typo でも 404 になります）\n"
                 "2. スプレッドシートがサービスアカウントと共有されていない\n"
@@ -151,6 +158,22 @@ class SheetService:
             transaction.category,
         ]
         self.worksheet.append_row(row, value_input_option="USER_ENTERED")
+
+    def clear_all_transactions(self) -> int:
+        """
+        2行目以降の記録をすべて削除する（ヘッダー行は残す）。
+
+        Returns:
+            削除した記録の件数
+        """
+        self.ensure_headers()
+        row_count = self.worksheet.row_count
+        deleted_count = max(row_count - 1, 0)
+
+        if row_count > 1:
+            self.worksheet.delete_rows(2, row_count)
+
+        return deleted_count
 
     def get_current_month_totals(self) -> tuple[int, int]:
         """

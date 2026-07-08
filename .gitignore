@@ -8,6 +8,7 @@ env/
 # 環境変数・秘密情報（絶対にGitに上げない）
 .env
 service_account.json
+render_service_account_oneline.txt
 
 # IDE
 .vscode/
