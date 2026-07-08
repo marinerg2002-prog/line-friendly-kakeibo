@@ -64,7 +64,7 @@ def handle_text_message(event):
     テキストメッセージを受け取ったときの処理。
 
     1. 「今月の家計」→ 今月の集計を返す
-    2. 「家計簿リセット」→ 記録をすべて削除
+    2. 「家計簿リセット」→ 今月の記録だけ削除
     3. 「+金額 内容」「-金額 内容」→ 記録して返信
     4. それ以外 → 入力形式の案内を返す
     """
@@ -93,7 +93,7 @@ def process_message(text: str) -> str:
         # 「家計簿リセット」のリクエスト
         if is_reset_request(text):
             sheet = SheetService()
-            deleted_count = sheet.clear_all_transactions()
+            deleted_count = sheet.clear_current_month_transactions()
             return build_reset_reply(deleted_count)
 
         # 収入・支出の記録

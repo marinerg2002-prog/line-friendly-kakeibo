@@ -159,20 +159,44 @@ class SheetService:
         ]
         self.worksheet.append_row(row, value_input_option="USER_ENTERED")
 
-    def clear_all_transactions(self) -> int:
+    def clear_current_month_transactions(self) -> int:
         """
-        2行目以降の記録をすべて削除する（ヘッダー行は残す）。
+        今月の記録だけ削除する（過去の月の記録は残す）。
 
         Returns:
             削除した記録の件数
         """
         self.ensure_headers()
-        row_count = self.worksheet.row_count
-        deleted_count = max(row_count - 1, 0)
+        current_month = datetime.now().strftime("%Y-%m")
+        all_values = self.worksheet.get_all_values()
 
-        if row_count > 1:
-            self.worksheet.delete_rows(2, row_count)
+        if len(all_values) <= 1:
+            return 0
 
+        header = all_values[0]
+        kept_rows = [header]
+        deleted_count = 0
+
+        for row in all_values[1:]:
+            if not row or not str(row[0]).strip():
+                continue
+
+            if str(row[0]).startswith(current_month):
+                deleted_count += 1
+            else:
+                # 列数を5列に揃えて保持する
+                kept_rows.append((row + [""] * 5)[:5])
+
+        if deleted_count == 0:
+            return 0
+
+        # 今月分を除いたデータでシートを書き直す
+        self.worksheet.clear()
+        self.worksheet.update(
+            f"A1:E{len(kept_rows)}",
+            kept_rows,
+            value_input_option="USER_ENTERED",
+        )
         return deleted_count
 
     def get_current_month_totals(self) -> tuple[int, int]:
