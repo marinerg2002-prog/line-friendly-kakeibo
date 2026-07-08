@@ -65,6 +65,9 @@ def diagnose():
         lines.append(f"<p><strong>接続結果: エラー</strong> ({type(exc).__name__}: {exc})</p>")
 
     return "\n".join(lines)
+
+
+@app.route("/callback", methods=["POST"])
 def callback():
     """
     LINE からの Webhook を受け取るエンドポイント。
