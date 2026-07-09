@@ -159,6 +159,52 @@ def is_reset_request(text: str) -> bool:
     return text.strip() == "家計簿リセット"
 
 
+# 「今月のグラフ」「7月のグラフ」「2026年7月のグラフ」などを判定
+GRAPH_REQUEST_PATTERN = re.compile(
+    r"^(?:今月のグラフ|(?:(?P<year>\d{4})年)?(?P<month>\d{1,2})月のグラフ)$"
+)
+
+
+def parse_graph_request(text: str) -> Optional[str]:
+    """
+    グラフ表示リクエストを解析し、対象月を「YYYY-MM」形式で返す。
+
+    例:
+        今月のグラフ -> 2026-07
+        7月のグラフ -> 2026-07
+        2025年12月のグラフ -> 2025-12
+    """
+    text = text.strip()
+    match = GRAPH_REQUEST_PATTERN.match(text)
+    if not match:
+        return None
+
+    if text == "今月のグラフ":
+        return datetime.now().strftime("%Y-%m")
+
+    month = int(match.group("month"))
+    year_str = match.group("year")
+    year = int(year_str) if year_str else datetime.now().year
+
+    return f"{year}-{month:02d}"
+
+
+def format_month_label(year_month: str) -> str:
+    """「2026-07」->「2026年7月」に変換する"""
+    year, month = year_month.split("-")
+    return f"{int(year)}年{int(month)}月"
+
+
+def build_no_graph_data_reply(year_month: str) -> str:
+    """対象月に記録がないときのメッセージ"""
+    label = format_month_label(year_month)
+    return (
+        f"📊 {label}の記録はまだありません。\n\n"
+        "収入・支出を記録してから、\n"
+        "もう一度グラフを見てみてください。"
+    )
+
+
 def build_reset_reply(deleted_count: int) -> str:
     """今月分の家計簿リセット完了時の LINE 返信メッセージを作る"""
     month_label = f"{datetime.now().month}月"
@@ -272,6 +318,8 @@ def build_invalid_format_reply() -> str:
         "-2450 スーパー\n\n"
         "📊【今月の集計を見る場合】\n"
         "「今月の家計」と送ってください。\n\n"
+        "📈【月ごとのグラフを見る場合】\n"
+        "「今月のグラフ」または「7月のグラフ」と送ってください。\n\n"
         "🔄【今月の記録を消す場合】\n"
         "「家計簿リセット」と送ってください（今月分のみ）。"
     )
@@ -302,6 +350,11 @@ def build_welcome_message() -> str:
         "収入・支出・残り金額をお知らせします。\n\n"
         "黒字なら褒めます 🎉\n"
         "赤字でも、やさしい言葉でお返しします 🌸\n\n"
+        "━━━━━━━━━━━━━━\n"
+        "📈 月ごとのグラフ\n"
+        "━━━━━━━━━━━━━━\n\n"
+        "「今月のグラフ」または「7月のグラフ」と送ると、\n"
+        "収入・支出・カテゴリ別のグラフを表示します。\n\n"
         "━━━━━━━━━━━━━━\n"
         "🔄 今月の記録をリセット\n"
         "━━━━━━━━━━━━━━\n\n"

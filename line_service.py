@@ -6,17 +6,20 @@ Webhook で受け取ったメッセージを処理し、返信を送ります。
 
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import FollowEvent, MessageEvent, TextMessage, TextSendMessage
+from linebot.models import FlexSendMessage, FollowEvent, MessageEvent, TextMessage, TextSendMessage
 
-from config import Config
+from chart_service import build_monthly_chart_flex
 from kakeibo_logic import (
     build_invalid_format_reply,
     build_monthly_summary_reply,
+    build_no_graph_data_reply,
     build_record_reply,
     build_reset_reply,
     build_welcome_message,
+    format_month_label,
     is_monthly_summary_request,
     is_reset_request,
+    parse_graph_request,
     parse_transaction,
 )
 from sheet_service import SheetConnectionError, SheetService
@@ -62,39 +65,48 @@ def handle_follow(event):
 def handle_text_message(event):
     """
     テキストメッセージを受け取ったときの処理。
-
-    1. 「今月の家計」→ 今月の集計を返す
-    2. 「家計簿リセット」→ 今月の記録だけ削除
-    3. 「+金額 内容」「-金額 内容」→ 記録して返信
-    4. それ以外 → 入力形式の案内を返す
     """
     user_message = event.message.text.strip()
-    reply_text = process_message(user_message)
+    replies = build_replies(user_message)
 
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text),
-    )
+    line_bot_api.reply_message(event.reply_token, replies)
 
 
-def process_message(text: str) -> str:
+def build_replies(text: str) -> list:
     """
-    ユーザーのメッセージを処理し、返信テキストを生成する。
+    ユーザーのメッセージを処理し、LINE 返信メッセージのリストを作る。
 
-    この関数はテストしやすいように、LINE 送信部分と分離しています。
+    テキスト返信と Flex Message（グラフ）の両方に対応します。
     """
     try:
         # 「今月の家計」のリクエスト
         if is_monthly_summary_request(text):
             sheet = SheetService()
             income_total, expense_total = sheet.get_current_month_totals()
-            return build_monthly_summary_reply(income_total, expense_total)
+            return [TextSendMessage(text=build_monthly_summary_reply(income_total, expense_total))]
+
+        # 月ごとのグラフ表示
+        year_month = parse_graph_request(text)
+        if year_month:
+            sheet = SheetService()
+            summary = sheet.get_month_summary(year_month)
+            if summary["income"] == 0 and summary["expense"] == 0:
+                return [TextSendMessage(text=build_no_graph_data_reply(year_month))]
+
+            label = format_month_label(year_month)
+            flex_contents = build_monthly_chart_flex(summary)
+            return [
+                FlexSendMessage(
+                    alt_text=f"{label}の家計グラフ",
+                    contents=flex_contents,
+                )
+            ]
 
         # 「家計簿リセット」のリクエスト
         if is_reset_request(text):
             sheet = SheetService()
             deleted_count = sheet.clear_current_month_transactions()
-            return build_reset_reply(deleted_count)
+            return [TextSendMessage(text=build_reset_reply(deleted_count))]
 
         # 収入・支出の記録
         transaction = parse_transaction(text)
@@ -102,9 +114,23 @@ def process_message(text: str) -> str:
             sheet = SheetService()
             sheet.ensure_headers()
             sheet.append_transaction(transaction)
-            return build_record_reply(transaction)
+            return [TextSendMessage(text=build_record_reply(transaction))]
+
     except SheetConnectionError as exc:
-        return exc.user_message
+        return [TextSendMessage(text=exc.user_message)]
 
     # 形式が合わない場合
-    return build_invalid_format_reply()
+    return [TextSendMessage(text=build_invalid_format_reply())]
+
+
+def process_message(text: str) -> str:
+    """
+    テキスト返信だけを取得する（テスト用）。
+
+    Flex Message の場合は案内文を返します。
+    """
+    replies = build_replies(text)
+    message = replies[0]
+    if isinstance(message, FlexSendMessage):
+        return message.alt_text
+    return message.text

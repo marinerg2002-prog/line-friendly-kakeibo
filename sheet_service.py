@@ -199,6 +199,48 @@ class SheetService:
         )
         return deleted_count
 
+    def get_month_summary(self, year_month: str) -> dict:
+        """
+        指定月の家計サマリーを集計する。
+
+        Args:
+            year_month: 「YYYY-MM」形式（例: 2026-07）
+
+        Returns:
+            収入・支出・残り・支出カテゴリ内訳
+        """
+        records = self.worksheet.get_all_records()
+        income_total = 0
+        expense_total = 0
+        expense_categories: dict[str, int] = {}
+
+        for record in records:
+            date_str = str(record.get("日付", ""))
+            if not date_str.startswith(year_month):
+                continue
+
+            kind = str(record.get("区分", ""))
+            category = str(record.get("カテゴリ", "その他"))
+
+            try:
+                amount = int(record.get("金額", 0))
+            except (ValueError, TypeError):
+                continue
+
+            if kind == "収入":
+                income_total += amount
+            elif kind == "支出":
+                expense_total += amount
+                expense_categories[category] = expense_categories.get(category, 0) + amount
+
+        return {
+            "year_month": year_month,
+            "income": income_total,
+            "expense": expense_total,
+            "balance": income_total - expense_total,
+            "expense_categories": expense_categories,
+        }
+
     def get_current_month_totals(self) -> tuple[int, int]:
         """
         今月の収入合計と支出合計を計算して返す。
