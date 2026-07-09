@@ -4,6 +4,8 @@
 Flask で Web サーバーを起動し、LINE の Webhook を受け取ります。
 """
 
+import os
+
 from flask import Flask, abort, request
 
 from config import Config
@@ -21,6 +23,16 @@ def index():
         "<p>サーバーは正常に動いています。</p>"
         "<p>LINE Webhook URL: <code>/callback</code></p>"
     )
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    """デプロイ確認・監視用"""
+    return {
+        "status": "ok",
+        "version": os.getenv("RENDER_GIT_COMMIT", "local")[:7],
+        "features": ["monthly_chart", "monthly_reset"],
+    }, 200
 
 
 @app.route("/diagnose", methods=["GET"])
