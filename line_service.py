@@ -9,6 +9,7 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import FlexSendMessage, FollowEvent, MessageEvent, TextMessage, TextSendMessage
 
 from chart_service import build_monthly_chart_flex
+from config import Config
 from kakeibo_logic import (
     build_invalid_format_reply,
     build_monthly_summary_reply,
