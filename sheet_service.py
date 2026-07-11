@@ -12,7 +12,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from config import Config
-from kakeibo_logic import Transaction
+from kakeibo_logic import Transaction, normalize_category, summarize_expense_categories
 
 # Google Sheets API で必要な権限
 SCOPES = [
@@ -236,7 +236,10 @@ class SheetService:
                 income_total += amount
             elif kind == "支出":
                 expense_total += amount
+                category = normalize_category(category)
                 expense_categories[category] = expense_categories.get(category, 0) + amount
+
+        expense_categories = summarize_expense_categories(expense_categories)
 
         return {
             "year_month": year_month,

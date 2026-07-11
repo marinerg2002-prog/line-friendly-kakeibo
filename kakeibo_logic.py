@@ -20,6 +20,18 @@ EXPENSE_CATEGORIES = [
     "その他",
 ]
 
+# 改善前のカテゴリ名を①〜④へ集約する
+LEGACY_CATEGORY_MAP = {
+    "食費": "食費",
+    "外食": "食費",
+    "日用品": "日用品費",
+    "日用品費": "日用品費",
+    "娯楽費": "交際・娯楽費",
+    "交際・娯楽費": "交際・娯楽費",
+    "交通費": "その他",
+    "その他": "その他",
+}
+
 # 「7月のグラフ」などを判定
 GRAPH_REQUEST_PATTERN = re.compile(
     r"^(?:今月のグラフ|(?:(?P<year>\d{4})年)?(?P<month>\d{1,2})月のグラフ)$"
@@ -40,6 +52,20 @@ class Transaction:
 def format_yen(amount: int) -> str:
     """金額を「1,234円」のように見やすく表示する"""
     return f"{amount:,}円"
+
+
+def normalize_category(category: str) -> str:
+    """カテゴリ名を①〜④のいずれかに統一する"""
+    return LEGACY_CATEGORY_MAP.get(category.strip(), "その他")
+
+
+def summarize_expense_categories(raw: dict[str, int]) -> dict[str, int]:
+    """支出カテゴリを①〜④だけに集約する"""
+    summarized = {category: 0 for category in EXPENSE_CATEGORIES}
+    for category, amount in raw.items():
+        normalized = normalize_category(category)
+        summarized[normalized] += amount
+    return {category: amount for category, amount in summarized.items() if amount > 0}
 
 
 def parse_amount(text: str) -> Optional[int]:
@@ -141,10 +167,6 @@ def build_monthly_summary_reply(summary: dict) -> str:
         for category in EXPENSE_CATEGORIES:
             amount = categories.get(category, 0)
             if amount > 0:
-                lines.append(f"・{category}：{format_yen(amount)}")
-        # 旧カテゴリ名のデータも表示
-        for category, amount in sorted(categories.items()):
-            if category not in EXPENSE_CATEGORIES and amount > 0:
                 lines.append(f"・{category}：{format_yen(amount)}")
         lines.append("")
         lines.append("きちんと記録できています ✨")

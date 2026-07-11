@@ -9,11 +9,6 @@ CATEGORY_COLORS = {
     "日用品費": "#DDD0F0",
     "交際・娯楽費": "#F5D5C8",
     "その他": "#D4D4D4",
-    # 旧カテゴリ（過去データ用）
-    "外食": "#FFA94D",
-    "交通費": "#4DABF7",
-    "日用品": "#51CF66",
-    "娯楽費": "#CC5DE8",
 }
 
 
@@ -47,17 +42,16 @@ def build_monthly_chart_flex(summary: dict) -> dict:
                 "color": "#6B5B7A",
             }
         )
-        max_amount = max(categories.values())
-        displayed = set()
+        max_amount = max(
+            (categories.get(category, 0) for category in EXPENSE_CATEGORIES),
+            default=0,
+        )
+        if max_amount == 0:
+            max_amount = 1
 
         for category in EXPENSE_CATEGORIES:
             amount = categories.get(category, 0)
             if amount > 0:
-                contents.append(_category_bar(category, amount, max_amount))
-                displayed.add(category)
-
-        for category, amount in sorted(categories.items()):
-            if category not in displayed and amount > 0:
                 contents.append(_category_bar(category, amount, max_amount))
     else:
         contents.append(
