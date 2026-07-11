@@ -39,18 +39,38 @@ BUTTONS = [
 BOLD_FONT_PATHS = [
     "C:/Windows/Fonts/BIZ-UDPGothicB.ttc",
     "C:/Windows/Fonts/YuGothB.ttc",
-    "C:/Windows/Fonts/YuGothM.ttc",
     "C:/Windows/Fonts/meiryob.ttc",
+    "C:/Windows/Fonts/msgothic.ttc",
     "/System/Library/Fonts/ヒラギノ丸ゴ ProN W6.ttc",
     "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
 ]
 
+FONT_SIZE_MAX = 82
+FONT_SIZE_MIN = 64
 
-def load_menu_font(size: int = 58) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+
+def load_menu_font(size: int = FONT_SIZE_MAX) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for font_path in BOLD_FONT_PATHS:
         if Path(font_path).exists():
             return ImageFont.truetype(font_path, size)
     return ImageFont.load_default()
+
+
+def fit_font_for_label(
+    draw: ImageDraw.ImageDraw,
+    label: str,
+    max_width: int,
+    max_height: int,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """ボタン内に収まる最大サイズの太字フォントを選ぶ"""
+    for size in range(FONT_SIZE_MAX, FONT_SIZE_MIN - 1, -2):
+        font = load_menu_font(size)
+        text_box = draw.textbbox((0, 0), label, font=font)
+        text_width = text_box[2] - text_box[0]
+        text_height = text_box[3] - text_box[1]
+        if text_width <= max_width and text_height <= max_height:
+            return font
+    return load_menu_font(FONT_SIZE_MIN)
 
 
 def button_bounds(row: int, col: int) -> tuple[int, int, int, int]:
@@ -67,18 +87,20 @@ def button_bounds(row: int, col: int) -> tuple[int, int, int, int]:
 def create_menu_image() -> Path:
     image = Image.new("RGB", (MENU_WIDTH, MENU_HEIGHT), BACKGROUND_COLOR)
     draw = ImageDraw.Draw(image)
-    font = load_menu_font()
 
     for button in BUTTONS:
         left, top, right, bottom = button_bounds(button["row"], button["col"])
         draw.rounded_rectangle([left, top, right, bottom], radius=40, fill=button["color"])
 
         text = button["label"]
+        button_width = right - left
+        button_height = bottom - top
+        font = fit_font_for_label(draw, text, button_width - 24, button_height - 16)
         text_box = draw.textbbox((0, 0), text, font=font)
         text_width = text_box[2] - text_box[0]
         text_height = text_box[3] - text_box[1]
-        x = left + (right - left - text_width) // 2
-        y = top + (bottom - top - text_height) // 2
+        x = left + (button_width - text_width) // 2
+        y = top + (button_height - text_height) // 2
         draw.text((x, y), text, fill=button["text_color"], font=font)
 
     image.save(IMAGE_PATH)
