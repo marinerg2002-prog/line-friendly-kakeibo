@@ -9,6 +9,7 @@ env/
 .env
 service_account.json
 render_service_account_oneline.txt
+rich_menu.png
 
 # IDE
 .vscode/

@@ -31,7 +31,7 @@ def health():
     return {
         "status": "ok",
         "version": os.getenv("RENDER_GIT_COMMIT", "local")[:7],
-        "features": ["monthly_chart", "monthly_reset"],
+        "features": ["expense_only", "rich_menu_6", "monthly_chart"],
     }, 200
 
 

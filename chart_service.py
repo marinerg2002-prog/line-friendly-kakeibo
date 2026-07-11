@@ -1,55 +1,38 @@
 """
-月ごとの家計グラフ（LINE Flex Message）
-
-スプレッドシートの集計データを、LINE 画面上で見やすいグラフにします。
+月ごとの支出グラフ（LINE Flex Message）
 """
 
-from kakeibo_logic import format_month_label, format_yen
+from kakeibo_logic import EXPENSE_CATEGORIES, format_month_label, format_yen
 
-# カテゴリごとの棒グラフの色
 CATEGORY_COLORS = {
-    "食費": "#FF6B6B",
+    "食費": "#F6D5DC",
+    "日用品費": "#DDD0F0",
+    "交際・娯楽費": "#F5D5C8",
+    "その他": "#D4D4D4",
+    # 旧カテゴリ（過去データ用）
     "外食": "#FFA94D",
     "交通費": "#4DABF7",
     "日用品": "#51CF66",
     "娯楽費": "#CC5DE8",
-    "給料": "#339AF0",
-    "臨時収入": "#22B8CF",
-    "その他": "#ADB5BD",
 }
 
 
 def build_monthly_chart_flex(summary: dict) -> dict:
-    """
-    月次家計サマリーから LINE Flex Message（バブル）を作る。
-
-    summary の形式:
-        {
-            "year_month": "2026-07",
-            "income": 250000,
-            "expense": 35000,
-            "balance": 215000,
-            "expense_categories": {"食費": 10000, "外食": 5000, ...},
-        }
-    """
+    """月次支出サマリーから LINE Flex Message を作る"""
     label = format_month_label(summary["year_month"])
-    income = summary["income"]
     expense = summary["expense"]
-    balance = summary["balance"]
     categories = summary["expense_categories"]
 
     contents = [
         {
             "type": "text",
-            "text": f"📊 {label}の家計",
+            "text": f"📊 {label}の支出",
             "weight": "bold",
             "size": "xl",
-            "color": "#1DB446",
+            "color": "#7A5568",
         },
         {"type": "separator", "margin": "md"},
-        _summary_row("💰 収入", format_yen(income), "#2B8A3E"),
-        _summary_row("🛒 支出", format_yen(expense), "#E03131"),
-        _summary_row("💵 残り", format_yen(balance), "#1971C2"),
+        _summary_row("🛒 支出合計", format_yen(expense), "#E03131"),
     ]
 
     if categories:
@@ -57,17 +40,25 @@ def build_monthly_chart_flex(summary: dict) -> dict:
         contents.append(
             {
                 "type": "text",
-                "text": "支出の内訳",
+                "text": "カテゴリ別の内訳",
                 "weight": "bold",
                 "size": "md",
                 "margin": "md",
+                "color": "#6B5B7A",
             }
         )
         max_amount = max(categories.values())
-        sorted_categories = sorted(categories.items(), key=lambda item: item[1], reverse=True)
+        displayed = set()
 
-        for category, amount in sorted_categories:
-            contents.append(_category_bar(category, amount, max_amount))
+        for category in EXPENSE_CATEGORIES:
+            amount = categories.get(category, 0)
+            if amount > 0:
+                contents.append(_category_bar(category, amount, max_amount))
+                displayed.add(category)
+
+        for category, amount in sorted(categories.items()):
+            if category not in displayed and amount > 0:
+                contents.append(_category_bar(category, amount, max_amount))
     else:
         contents.append(
             {
@@ -92,19 +83,12 @@ def build_monthly_chart_flex(summary: dict) -> dict:
 
 
 def _summary_row(label: str, value: str, color: str) -> dict:
-    """収入・支出・残りのサマリー行を作る"""
     return {
         "type": "box",
         "layout": "horizontal",
         "margin": "sm",
         "contents": [
-            {
-                "type": "text",
-                "text": label,
-                "size": "sm",
-                "color": "#555555",
-                "flex": 2,
-            },
+            {"type": "text", "text": label, "size": "sm", "color": "#555555", "flex": 2},
             {
                 "type": "text",
                 "text": value,
@@ -119,8 +103,6 @@ def _summary_row(label: str, value: str, color: str) -> dict:
 
 
 def _category_bar(category: str, amount: int, max_amount: int) -> dict:
-    """カテゴリ別の棒グラフ1行を作る"""
-    # 棒の長さ（flex 1〜10）
     bar_flex = max(int(amount / max_amount * 10), 1)
     empty_flex = 10 - bar_flex
     color = CATEGORY_COLORS.get(category, "#ADB5BD")
@@ -134,12 +116,7 @@ def _category_bar(category: str, amount: int, max_amount: int) -> dict:
                 "type": "box",
                 "layout": "horizontal",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": category,
-                        "size": "sm",
-                        "flex": 2,
-                    },
+                    {"type": "text", "text": category, "size": "sm", "flex": 2},
                     {
                         "type": "text",
                         "text": format_yen(amount),
@@ -162,11 +139,7 @@ def _category_bar(category: str, amount: int, max_amount: int) -> dict:
                         "height": "12px",
                         "cornerRadius": "6px",
                     },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "flex": empty_flex,
-                    },
+                    {"type": "box", "layout": "vertical", "flex": empty_flex},
                 ],
             },
         ],

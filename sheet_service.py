@@ -199,6 +199,11 @@ class SheetService:
         )
         return deleted_count
 
+    @staticmethod
+    def current_year_month() -> str:
+        """今月を「YYYY-MM」形式で返す"""
+        return datetime.now().strftime("%Y-%m")
+
     def get_month_summary(self, year_month: str) -> dict:
         """
         指定月の家計サマリーを集計する。
