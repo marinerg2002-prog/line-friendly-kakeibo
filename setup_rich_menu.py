@@ -12,7 +12,7 @@ LINE リッチメニュー（6分割）のセットアップスクリプト
 from pathlib import Path
 
 from linebot import LineBotApi
-from linebot.models import MessageAction, RichMenu, RichMenuArea, RichMenuBounds, RichMenuSize
+from linebot.models import MessageAction, PostbackAction, RichMenu, RichMenuArea, RichMenuBounds, RichMenuSize
 from PIL import Image, ImageDraw, ImageFont
 
 from config import Config
@@ -28,12 +28,12 @@ COL_WIDTH = MENU_WIDTH // COLS
 ROW_HEIGHT = MENU_HEIGHT // ROWS
 
 BUTTONS = [
-  {"label": "食費", "text": "食費", "color": "#F6D5DC", "text_color": "#5E3F4F", "row": 0, "col": 0},
-  {"label": "日用品費", "text": "日用品費", "color": "#DDD0F0", "text_color": "#524563", "row": 0, "col": 1},
-  {"label": "交際・娯楽費", "text": "交際・娯楽費", "color": "#F5D5C8", "text_color": "#6B5348", "row": 0, "col": 2},
-  {"label": "その他", "text": "その他", "color": "#E4E4E4", "text_color": "#555555", "row": 1, "col": 0},
-  {"label": "今月のグラフ", "text": "今月のグラフ", "color": "#C5DCE8", "text_color": "#3F5460", "row": 1, "col": 1},
-  {"label": "使い方", "text": "使い方", "color": "#CFE8DD", "text_color": "#3F544B", "row": 1, "col": 2},
+  {"label": "食費", "kind": "category", "category": "食費", "color": "#F6D5DC", "text_color": "#5E3F4F", "row": 0, "col": 0},
+  {"label": "日用品費", "kind": "category", "category": "日用品費", "color": "#DDD0F0", "text_color": "#524563", "row": 0, "col": 1},
+  {"label": "交際・娯楽費", "kind": "category", "category": "交際・娯楽費", "color": "#F5D5C8", "text_color": "#6B5348", "row": 0, "col": 2},
+  {"label": "その他", "kind": "category", "category": "その他", "color": "#E4E4E4", "text_color": "#555555", "row": 1, "col": 0},
+  {"label": "今月のグラフ", "kind": "message", "text": "今月のグラフ", "color": "#C5DCE8", "text_color": "#3F5460", "row": 1, "col": 1},
+  {"label": "使い方", "kind": "message", "text": "使い方", "color": "#CFE8DD", "text_color": "#3F544B", "row": 1, "col": 2},
 ]
 
 BOLD_FONT_PATHS = [
@@ -107,6 +107,17 @@ def create_menu_image() -> Path:
     return IMAGE_PATH
 
 
+def build_menu_action(button: dict) -> MessageAction | PostbackAction:
+    """カテゴリはキーボードを開くPostback、それ以外はメッセージ送信"""
+    if button["kind"] == "category":
+        return PostbackAction(
+            label=button["label"],
+            data=f"category={button['category']}",
+            input_option="openKeyboard",
+        )
+    return MessageAction(label=button["label"], text=button["text"])
+
+
 def build_rich_menu() -> RichMenu:
     areas = []
     for button in BUTTONS:
@@ -118,7 +129,7 @@ def build_rich_menu() -> RichMenu:
         areas.append(
             RichMenuArea(
                 bounds=RichMenuBounds(x=x, y=y, width=width, height=height),
-                action=MessageAction(label=button["label"], text=button["text"]),
+                action=build_menu_action(button),
             )
         )
 

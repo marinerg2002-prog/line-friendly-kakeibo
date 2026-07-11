@@ -4,12 +4,11 @@ LINE Messaging API 連携
 
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import FlexSendMessage, FollowEvent, MessageEvent, TextMessage, TextSendMessage
+from linebot.models import FlexSendMessage, FollowEvent, MessageEvent, PostbackEvent, TextMessage, TextSendMessage
 
 from chart_service import build_monthly_chart_flex
 from config import Config
 from kakeibo_logic import (
-    build_category_prompt,
     build_invalid_format_reply,
     build_monthly_summary_reply,
     build_no_graph_data_reply,
@@ -24,6 +23,7 @@ from kakeibo_logic import (
     parse_amount,
     parse_category_selection,
     parse_graph_request,
+    parse_postback_category,
 )
 from sheet_service import SheetConnectionError, SheetService
 
@@ -42,6 +42,11 @@ def handle_webhook(body: str, signature: str) -> tuple[str, int]:
     return "OK", 200
 
 
+def select_expense_category(user_id: str, category: str) -> None:
+    """カテゴリを選択し、金額入力待ちにする（案内メッセージは送らない）"""
+    pending_categories[user_id] = category
+
+
 @handler.add(FollowEvent)
 def handle_follow(event):
     line_bot_api.reply_message(
@@ -50,12 +55,22 @@ def handle_follow(event):
     )
 
 
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    category = parse_postback_category(event.postback.data)
+    if not category:
+        return
+
+    select_expense_category(event.source.user_id, category)
+
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
     user_message = event.message.text.strip()
     user_id = event.source.user_id
     replies = build_replies(user_message, user_id)
-    line_bot_api.reply_message(event.reply_token, replies)
+    if replies:
+        line_bot_api.reply_message(event.reply_token, replies)
 
 
 def build_replies(text: str, user_id: str) -> list:
@@ -93,8 +108,8 @@ def build_replies(text: str, user_id: str) -> list:
 
         category = parse_category_selection(text)
         if category:
-            pending_categories[user_id] = category
-            return [TextSendMessage(text=build_category_prompt(category))]
+            select_expense_category(user_id, category)
+            return []
 
         amount = parse_amount(text)
         if amount is not None and user_id in pending_categories:
@@ -122,6 +137,8 @@ def build_replies(text: str, user_id: str) -> list:
 def process_message(text: str, user_id: str = "test_user") -> str:
     """テスト用：テキスト返信を取得する"""
     replies = build_replies(text, user_id)
+    if not replies:
+        return ""
     message = replies[0]
     if isinstance(message, FlexSendMessage):
         return message.alt_text

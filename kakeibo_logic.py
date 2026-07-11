@@ -84,6 +84,16 @@ def parse_category_selection(text: str) -> Optional[str]:
     return None
 
 
+def parse_postback_category(data: str) -> Optional[str]:
+    """Postbackのdataからカテゴリ名を取得する"""
+    if not data.startswith("category="):
+        return None
+    category = data.removeprefix("category=")
+    if category in EXPENSE_CATEGORIES:
+        return category
+    return None
+
+
 def create_expense(category: str, amount: int) -> Transaction:
     """支出データを作成する"""
     return Transaction(
@@ -130,15 +140,6 @@ def format_month_label(year_month: str) -> str:
     """「2026-07」->「2026年7月」に変換する"""
     year, month = year_month.split("-")
     return f"{int(year)}年{int(month)}月"
-
-
-def build_category_prompt(category: str) -> str:
-    """カテゴリ選択後、金額入力を促すメッセージ"""
-    return (
-        f"📝 {category}の記録\n\n"
-        "金額を入力してください（数字のみ）\n"
-        "例：580"
-    )
 
 
 def build_record_reply(transaction: Transaction) -> str:
