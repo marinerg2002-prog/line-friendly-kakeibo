@@ -80,8 +80,8 @@ def is_help_request(text: str) -> bool:
 
 
 def is_reset_request(text: str) -> bool:
-    """「家計簿リセット」というメッセージかどうかを判定する"""
-    return text.strip() == "家計簿リセット"
+    """「リセット」というメッセージかどうかを判定する"""
+    return text.strip() == "リセット"
 
 
 def parse_graph_request(text: str) -> Optional[str]:
@@ -198,7 +198,7 @@ def build_invalid_format_reply() -> str:
         "❓【使い方】\n"
         "リッチメニューの「使い方」をタップ\n\n"
         "🔄【今月の記録を消す場合】\n"
-        "「家計簿リセット」と送ってください。"
+        "「リセット」と送ってください。"
     )
 
 
@@ -225,7 +225,7 @@ def build_welcome_message() -> str:
         "━━━━━━━━━━━━━━\n"
         "🔄 今月のリセット\n"
         "━━━━━━━━━━━━━━\n\n"
-        "「家計簿リセット」で今月分だけ\n"
+        "「リセット」で今月分だけ\n"
         "記録を削除できます。\n\n"
         "さっそく記録してみてください！ 🌱"
     )
